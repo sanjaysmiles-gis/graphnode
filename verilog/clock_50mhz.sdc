@@ -1,0 +1,2 @@
+# Base clock only. Add device-specific output constraints in your project.
+create_clock -name clk50 -period 20.000 [get_ports {clk50}]
