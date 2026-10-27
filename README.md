@@ -24,6 +24,8 @@ Compile the hardware for the maximum capacity: 100 nodes, 100 slots/node, 32-bit
 
 The VGA renderer reads node centres from the coordinate block, and endpoints/weights from the connection block. It still needs circle/text/line/arrow drawing logic; this file is neither a bitmap nor a VGA signal. The old generated VGA/Verilog bundle has been removed from the website.
 
+Any legacy `verilog/` files retained in the GitHub repository describe the previous format and must be adapted before use with NFG1.
+
 ROM initialization updates require a supported memory-image or bitstream update. Changing graphs live without reprogramming needs writable RAM and a loader such as UART/JTAG. Your actual RTL has not been modified or hardware-tested here.
 
 ## Checks

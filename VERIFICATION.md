@@ -9,5 +9,6 @@ Verified for this revision:
 - Rejection of inconsistent counts, offsets, widths, extra/truncated words, invalid destinations and out-of-screen coordinates.
 - DOM tests: Generate HEX payload, both download controls, coordinate editing, reset-view preserving coordinates, inspector sections, memory map, invalid-cell blocking, Dijkstra, 100 × 100 resizing, NFG1 re-import, atomic failure on invalid import.
 - Real browser: editor rendering, numeric position change and coordinate word shown in inspector (123,234 -> 007B00EA); three-section layout visually inspected.
+- Public Vercel site: native Generate HEX download completed; downloaded bytes exactly matched the expected 104-word NFG1 image for the 16-node, 4-slot sample. The site opened without login.
 
-Limitations: the automated native browser download event timed out, so downloaded bytes were checked through the DOM test's Blob capture. No Quartus synthesis, ModelSim run, physical FPGA/VGA monitor test, or adaptation of the user's actual Dijkstra/VGA RTL was performed for NFG1. Earlier Verilog bundle simulation results do not establish compatibility with this new image format.
+Limitations: no Quartus synthesis, ModelSim run, physical FPGA/VGA monitor test, or adaptation of the user's actual Dijkstra/VGA RTL was performed for NFG1. Earlier Verilog bundle simulation results do not establish compatibility with this new image format.
