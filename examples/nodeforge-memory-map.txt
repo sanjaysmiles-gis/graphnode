@@ -1,0 +1,55 @@
+NODEFORGE NFG1 · graph.hex
+Raw hexadecimal for $readmemh; not Intel HEX. Every line is one 32-bit word.
+Addresses are zero-based WORD addresses, not byte addresses.
+
+1. METADATA
+ 0 / 0x0000  4E464731  Magic · NFG1 = 1313228593
+ 1 / 0x0001  00000001  Format version = 1
+ 2 / 0x0002  00000018  Header words = 24
+ 3 / 0x0003  00000003  Active nodes = 3
+ 4 / 0x0004  00000002  Neighbour slots / node = 2
+ 5 / 0x0005  00000004  Valid directed edges = 4
+ 6 / 0x0006  00000002  Minimum node-ID bits = 2
+ 7 / 0x0007  00000008  Weight bits = 8
+ 8 / 0x0008  00000020  ROM word bits = 32
+ 9 / 0x0009  00000280  VGA width (pixels) = 640
+10 / 0x000A  000001E0  VGA height (pixels) = 480
+11 / 0x000B  0000000A  X coordinate bits = 10
+12 / 0x000C  00000009  Y coordinate bits = 9
+13 / 0x000D  00000018  Connections start address = 24
+14 / 0x000E  00000006  Connection words = 6
+15 / 0x000F  0000001E  Coordinates start address = 30
+16 / 0x0010  00000003  Coordinate words = 3
+17 / 0x0011  00000021  Total image words = 33
+18 / 0x0012  FFFFFFFF  Unused connection word = 4294967295
+19 / 0x0013  00000010  Distance bits = 16
+20 / 0x0014  00000008  Stored destination bits = 8
+21 / 0x0015  00000064  Maximum supported nodes = 100
+22 / 0x0016  00000064  Maximum supported slots = 100
+23 / 0x0017  00000001  Flags · directed graph = 1
+
+2. CONNECTIONS · words 24–29
+Address = connection_start + source_node * slots_per_node + slot (slot is zero-based).
+Word = 0000DDWW; destination = bits [15:8]; weight = bits [7:0].
+FFFFFFFF means unused. A zero-weight edge is valid. Reverse edges need their own entry.
+
+3. VGA COORDINATES · words 30–32
+Address = coordinate_start + node_id. Word = XXXXYYYY.
+X = bits [31:16] (0–639), Y = bits [15:0] (0–479).
+Origin is top-left. X increases right; Y increases down. All entries are node centres.
+Node 0: (100, 100) = 00640064
+Node 1: (320, 100) = 01400064
+Node 2: (210, 300) = 00D2012C
+
+FPGA INTEGRATION
+This is a new image format, not a drop-in replacement for the original 12-bit ROM.
+Compile hardware once for capacity: 100 nodes, 100 slots/node, 32-bit ROM, 10124 words, 14-bit address.
+Use an 8-bit node lane, 7-bit node/slot counts, 100-entry visited/distance/parent storage.
+Use 16-bit unsigned distances with FFFF as infinity; guard infinity before adding weights.
+Read active node count from word 3 and slot count from word 4. Only process those entries.
+The minimum-ID-bit field is descriptive; a HEX file cannot resize synthesized wires or parameters.
+VGA logic must draw circles/text at the coordinate centres and lines/arrows from each source to destination.
+Coordinates are data, not a bitmap or VGA waveform. Labels, weight text, arrows and self-loops need renderer logic.
+Browser path highlighting, visibility filters and zoom are not encoded. Connections and centres are encoded.
+Changing the initialization file requires a supported memory-image/bitstream update. Live replacement needs a RAM loader (UART/JTAG/etc.).
+Actual Dijkstra/VGA RTL must be adapted to this map and checked on your board.
