@@ -1,14 +1,13 @@
-# Validation performed
+# Verification — three-part NFG1 export
 
-- Original uploaded graph.mem: all 256 bytes exactly reproduced after import/export (64 words, 52 directed edges).
-- Dijkstra: all 256 source/target pairs in the original sample matched an independent Floyd–Warshall reference. Example 0→15: 0,6,8,10,12,14,15; total weight 21.
-- Unreachable nodes, source=target, zero weights, parallel edges, self-loops, weight bounds, legacy sentinel collision, malformed hex and paste boundaries checked.
-- 100×100 extended table: 10,000 words, exact round trip; 99 (255) exports as 63FF; empty slots as FFFF.
-- All generated ZIPs verified with Python's zipfile CRC checks.
-- Generated Verilog-2001 compiled with Icarus Verilog 12.0 for 1×1 legacy, 16×4 legacy, 17×3 extended and 100×100 extended configurations.
-- Each configuration passed its bounded simulation: every ROM word and decoder output, out-of-range address handling when representable, 420,000 raster positions, 307,200 active pixels, 50,400 HS-low pixels, 1,600 VS-low pixels, RGB blanking and source-node colour.
-- DOM tests with jsdom exercised initialization, tabs, exact MEM/MIF downloads, ZIP generation, Dijkstra/trace, invalid-cell handling and resizing to 100×100. Canvas drawing and native dialog behavior were not visually tested.
-- Optional WebMCP actions were checked through a mocked registry for same-state updates and atomic failure. Validation in a native supported WebMCP browser was unavailable.
-- Local HTML asset references and JavaScript module syntax checked.
+Verified for this revision:
+- Original 12-bit ROM import roundtrip and graph parsing.
+- All 256 source/target sample shortest paths against an independent Floyd–Warshall implementation.
+- Exact 24-word header and every source/slot address in a 100 × 100 graph.
+- 36 dimension/layout roundtrips across 1, 2, 16, 17, 99 and 100 nodes; 1, 4 and 100 slots; grid and circular layouts.
+- Weights 0 and 255, unused slots, self-loops, duplicate edges and coordinate boundaries.
+- Rejection of inconsistent counts, offsets, widths, extra/truncated words, invalid destinations and out-of-screen coordinates.
+- DOM tests: Generate HEX payload, both download controls, coordinate editing, reset-view preserving coordinates, inspector sections, memory map, invalid-cell blocking, Dijkstra, 100 × 100 resizing, NFG1 re-import, atomic failure on invalid import.
+- Real browser: editor rendering, numeric position change and coordinate word shown in inspector (123,234 -> 007B00EA); three-section layout visually inspected.
 
-Not performed: graphical browser QA, Quartus synthesis/fitting/timing analysis, physical VGA or Dijkstra-core integration. No exact board model or Dijkstra core RTL was supplied. The VGA timing is a 25 MHz approximation of the 640×480 mode; verify monitor and board compatibility.
+Limitations: the automated native browser download event timed out, so downloaded bytes were checked through the DOM test's Blob capture. No Quartus synthesis, ModelSim run, physical FPGA/VGA monitor test, or adaptation of the user's actual Dijkstra/VGA RTL was performed for NFG1. Earlier Verilog bundle simulation results do not establish compatibility with this new image format.

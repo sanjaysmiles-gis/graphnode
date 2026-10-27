@@ -1,22 +1,36 @@
 # NodeForge — Graph to ROM
 
-A self-contained static website for editing directed weighted neighbour tables, viewing a graph, checking shortest paths and exporting FPGA ROM / VGA integration files.
+An Excel-style directed weighted graph editor for 1–100 nodes and 1–100 neighbour slots per node. Enter `destination (weight)`, arrange the graph, and click **Generate HEX**.
 
-The served application is in `dist/`. There are no runtime dependencies or external requests. Publish `dist/` as static assets; use an HTTP server when working locally because the app uses ES modules.
+The static, dependency-free app is in `dist/`. Serve it over HTTP (ES modules). There is no application login, backend, analytics, or external request.
 
-## Important contracts
+## One file, three parts
 
-- Original format: 12 bits per word, destination in bits 11:8, unsigned weight in 7:0, `FFF` unused. Limited to 16 node IDs.
-- Extended format: 16 bits per word, destination in 15:8, unsigned weight in 7:0, `FFFF` unused. The app supports at most 100 nodes and 100 slots per node.
-- Words are ordered by source node, then fixed neighbour slot. Unused slots are preserved. Files are raw uppercase hex, one word per line, with a final newline.
-- `.hex` is not Intel HEX. `.mif` is a separate Quartus-format export.
-- Larger dimensions require a correspondingly widened Dijkstra core. The generated VGA/ROM package does not implement the algorithm core.
-- Graph edits live in the open page. Downloads are the way to preserve edits; no cloud or browser-state persistence is claimed.
+`graph.hex` is an NFG1 memory image with eight hexadecimal digits per 32-bit word:
+
+1. **Metadata**: 24 words containing counts, data widths, VGA dimensions and section addresses.
+2. **Connections**: N × K words, ordered by source node then neighbour slot. `0000DDWW` stores the 8-bit destination and 8-bit weight. `FFFFFFFF` means unused.
+3. **VGA coordinates**: N words, one per node, packed as `XXXXYYYY` (X high 16 bits, Y low 16 bits). X is 0–639; Y is 0–479. These are the exact integer centres in the browser graph.
+
+Node IDs and table weights are decimal, starting at node 0. Weights range from 0 to 255. Directed reverse edges, self-loops, parallel edges and zero weights are preserved. Coordinates can be dragged or entered numerically. Browser zoom, filters and algorithm highlighting do not affect the export.
+
+The HEX inspector describes all three sections. **Download memory map** gives the graph-specific address map. Importing NFG1 restores counts, connections and coordinates. Original 12-bit/16-bit raw ROM files can still be imported using the configured dimensions.
+
+## FPGA integration contract
+
+This new image is **not compatible with the old 12-bit ROM reader without adaptation**. It is raw `$readmemh` text, not Intel HEX. A complete memory map and small example are in `HEX_FORMAT.md` and `examples/`.
+
+Compile the hardware for the maximum capacity: 100 nodes, 100 slots/node, 32-bit memory words, 10124 words, 14-bit memory addresses, 8-bit node IDs, and 16-bit unsigned distances (`FFFF` infinity). The header's active counts control runtime loops. Metadata cannot change synthesized signal widths or Verilog parameters.
+
+The VGA renderer reads node centres from the coordinate block, and endpoints/weights from the connection block. It still needs circle/text/line/arrow drawing logic; this file is neither a bitmap nor a VGA signal. The old generated VGA/Verilog bundle has been removed from the website.
+
+ROM initialization updates require a supported memory-image or bitstream update. Changing graphs live without reprogramming needs writable RAM and a loader such as UART/JTAG. Your actual RTL has not been modified or hardware-tested here.
 
 ## Checks
 
-`node tests/core.test.mjs` checks exact sample round trips, malformed entries, format boundaries, Excel paste bounds, all 256 sample shortest paths against Floyd–Warshall, and 100×100 export/import. It generates Verilog test packages in `/tmp/nodeforge-generated` by default; set `NODEFORGE_TEST_OUTPUT` to select another directory.
+```
+node tests/core.test.mjs
+node tests/image.test.mjs
+```
 
-The generated package contains a bounded Verilog testbench with commands in its README. Browser-generated ZIP files use stored entries and CRC32 with no third-party dependency.
-
-See `VERIFICATION.md` for the validation actually performed on this version.
+See `VERIFICATION.md` for the scope of verification. Download HEX before closing the page; edits are held in the current page only.
