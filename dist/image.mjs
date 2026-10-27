@@ -105,3 +105,18 @@ export function imageMap(state,positions) {
     ''
   ].join('\n');
 }
+
+// Quartus MIF serialization matches tools/nfg1_to_mif.py in the FPGA project.
+export const ROM_DEPTH = 10124;
+export function graphMif(state, positions) {
+  const {words} = graphImage(state, positions);
+  const address = n => n.toString(16).toUpperCase().padStart(4, '0');
+  const lines = ['WIDTH=32;', `DEPTH=${ROM_DEPTH};`, 'ADDRESS_RADIX=HEX;', 'DATA_RADIX=HEX;', 'CONTENT BEGIN'];
+  words.forEach((word, i) => lines.push(`${address(i)} : ${hex32(word)};`));
+  if (words.length < ROM_DEPTH) lines.push(`[${address(words.length)}..${address(ROM_DEPTH-1)}] : 00000000;`);
+  return [...lines, 'END;', ''].join('\n');
+}
+export function graphPaddedHex(state, positions) {
+  const img = graphImage(state, positions);
+  return img.text + '00000000\n'.repeat(ROM_DEPTH - img.total);
+}

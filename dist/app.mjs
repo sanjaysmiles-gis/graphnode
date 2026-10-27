@@ -1,5 +1,5 @@
 import {SAMPLE,decode,validate,shortestPath,pasteCells,csvTable} from './core.mjs';
-import {graphImage,decodeImage,layoutNodes,imageMap,HEADER_FIELDS,hex32} from './image.mjs';
+import {graphImage,graphMif,graphPaddedHex,decodeImage,layoutNodes,imageMap,HEADER_FIELDS,hex32} from './image.mjs';
 const $=id=>document.getElementById(id);
 let state={...decode(SAMPLE,16,4,'legacy'),format:'extended'}, checked=validate(state), selected=null, result=null, trace=null, layout='grid', positions=[], zoom=1, activeTab='editor', toastTimer, editTimer;
 const escape=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -19,7 +19,7 @@ function validateView(){checked=validate(state);$('edge-stat').textContent=check
  document.querySelectorAll('.bad-cell').forEach(x=>{x.classList.remove('bad-cell');x.firstElementChild.removeAttribute('aria-invalid');x.firstElementChild.removeAttribute('title');});
  checked.errors.forEach(e=>{const el=$('graph-table').querySelector(`[data-node="${e.node}"][data-slot="${e.slot}"]`);if(el){el.parentElement.classList.add('bad-cell');el.setAttribute('aria-invalid','true');el.title=e.message;}});
  $('errors-panel').hidden=!checked.errors.length;$('errors-panel').innerHTML=checked.errors.slice(0,5).map(e=>`<div><strong>Node ${e.node}, neighbour ${e.slot+1}:</strong> ${escape(e.message)}</div>`).join('')+(checked.errors.length>5?`<div>And ${checked.errors.length-5} more invalid cells.</div>`:'');
- for(const id of ['download-main','export-btn','copy-rom','download-map','run-btn'])$(id).disabled=!!checked.errors.length;
+ for(const id of ['download-main','export-btn','download-hex','download-padded','copy-rom','download-map','run-btn'])$(id).disabled=!!checked.errors.length;
 }
 function arrange(){positions=layoutNodes(state.nodes,layout);}
 function syncCoordinates(){const n=selected??0,p=positions[n];$('coordinate-node').value=n;$('coordinate-x').value=p.x;$('coordinate-y').value=p.y;}
@@ -39,7 +39,7 @@ function drawGraph(){
  if(state.nodes>25&&!only&&weights)$('selected-label').textContent=selected===null?'Select a node for weights':`Node ${selected} · filter for weights`;
 }
 function renderRom(){
- if(checked.errors.length){$('rom-table').innerHTML='<tbody><tr><td>Fix invalid cells before generating HEX.</td></tr></tbody>';for(const id of ['metadata-summary','connections-summary','coordinates-summary'])$(id).textContent='Fix invalid table cells';$('rom-contract').innerHTML='';return;}
+ if(checked.errors.length){$('rom-table').innerHTML='<tbody><tr><td>Fix invalid cells before exporting.</td></tr></tbody>';for(const id of ['metadata-summary','connections-summary','coordinates-summary'])$(id).textContent='Fix invalid table cells';$('rom-contract').innerHTML='';return;}
  const img=graphImage(state,positions),part=$('hex-section').value;
  $('metadata-summary').textContent=`${state.nodes} nodes · ${state.slots} slots per node`;
  $('connections-summary').textContent=`${checked.count} directed edges · ${img.edges.length} slots`;
@@ -49,12 +49,12 @@ function renderRom(){
  if(part==='edges')rows=img.edges.map((v,i)=>[img.edgeBase+i,`Node ${Math.floor(i/state.slots)} · slot ${i%state.slots+1}`,hex32(v),v===0xFFFFFFFF?'Unused':`→ ${v>>>8} · weight ${v&255}`]);
  if(part==='coords')rows=img.coords.map((v,i)=>[img.coordBase+i,`Node ${i}`,hex32(v),`X = ${positions[i].x}, Y = ${positions[i].y}`]);
  $('rom-table').innerHTML='<thead><tr><th>ADDRESS (HEX)</th><th>FIELD / NODE</th><th>HEX WORD</th><th>VALUE (DECIMAL)</th></tr></thead><tbody>'+rows.map(r=>`<tr><td>${r[0].toString(16).toUpperCase().padStart(4,'0')}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')+'</tbody>';
- $('rom-contract').innerHTML=`<dt>Format</dt><dd>NFG1 · v1</dd><dt>Word width</dt><dd>32 bits</dd><dt>Header</dt><dd>24 words</dd><dt>Connections start</dt><dd>${img.edgeBase}</dd><dt>Coordinates start</dt><dd>${img.coordBase}</dd><dt>Total image</dt><dd>${img.total} words</dd><dt>Memory payload</dt><dd>${img.total*4} bytes</dd>`;
+ $('rom-contract').innerHTML=`<dt>Format</dt><dd>NFG1 · v1</dd><dt>MIF depth</dt><dd>10124 words</dd><dt>Word width</dt><dd>32 bits</dd><dt>Header</dt><dd>24 words</dd><dt>Connections start</dt><dd>${img.edgeBase}</dd><dt>Coordinates start</dt><dd>${img.coordBase}</dd><dt>Total image</dt><dd>${img.total} words</dd><dt>Memory payload</dt><dd>${img.total*4} bytes</dd>`;
 }
 function refresh({table=false,config=false}={}){if(config){syncConfig();nodeOptions();}if(table)buildTable();validateView();drawGraph();if(activeTab==='rom')renderRom();}
 function changeTab(tab){activeTab=tab;document.querySelectorAll('[data-tab]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tab===tab);b.tabIndex=b.dataset.tab===tab?0:-1;});for(const id of ['editor','rom'])$(id+'-panel').hidden=id!==tab;if(tab==='rom')renderRom();}
 function applyConfig(){const nodes=Number($('nodes-input').value),slots=Number($('slots-input').value);let format='extended';if(!Number.isInteger(nodes)||nodes<1||nodes>100||!Number.isInteger(slots)||slots<1||slots>100)throw Error('Nodes and neighbours must be whole numbers from 1 to 100.');if(nodes>16)format='extended';const hasRemoved=state.cells.some((r,n)=>r.some((v,s)=>v.trim()&&(n>=nodes||s>=slots)));if(hasRemoved&&!confirm('The smaller table will remove connections outside its new dimensions. Continue?'))return;
- state={nodes,slots,format,cells:Array.from({length:nodes},(_,n)=>Array.from({length:slots},(_,s)=>state.cells[n]?.[s]??''))};selected=null;arrange();resetPath();refresh({table:true,config:true});toast('Graph size applied. The HEX header and coordinates now match.');}
+ state={nodes,slots,format,cells:Array.from({length:nodes},(_,n)=>Array.from({length:slots},(_,s)=>state.cells[n]?.[s]??''))};selected=null;arrange();resetPath();refresh({table:true,config:true});toast('Graph size applied. The memory header and coordinates now match.');}
 function runPath(source=Number($('source-select').value),target=Number($('target-select').value)){result=shortestPath(state,source,target);trace=null;$('source-select').value=source;$('target-select').value=target;$('path-result').innerHTML=result.path.length?`<div><strong>${result.distance}</strong> <span class="muted">total weight · ${result.path.length-1} edge${result.path.length===2?'':'s'}</span></div><div class="path-chips">${result.path.join(' → ')}</div>`:'<span class="muted">No directed path connects these nodes.</span>';$('trace-panel').hidden=!result.steps.length;$('trace-slider').max=Math.max(0,result.steps.length-1);$('trace-slider').value=Math.max(0,result.steps.length-1);$('trace-label').textContent=`${result.steps.length} node(s) finalized. Drag to inspect each step.`;drawGraph();return result;}
 $('apply-btn').addEventListener('click',()=>safe(applyConfig));
 $('sample-btn').addEventListener('click',()=>{if(JSON.stringify(state.cells)!==JSON.stringify(decode(SAMPLE,16,4,'legacy').cells)&&!confirm('Replace the current table with the supplied 16-node sample?'))return;state={...decode(SAMPLE,16,4,'legacy'),format:'extended'};selected=null;arrange();resetPath();refresh({table:true,config:true});toast('Original graph.mem loaded: 16 nodes, 4 slots each.');});
@@ -65,7 +65,10 @@ $('graph-table').addEventListener('keydown',e=>{if(!e.target.matches('input'))re
 $('clear-btn').addEventListener('click',()=>{if(!confirm('Clear all connections in the current table?'))return;state.cells=state.cells.map(r=>r.map(()=>''));resetPath();refresh({table:true});});
 document.querySelectorAll('[data-tab]').forEach(b=>{b.addEventListener('click',()=>changeTab(b.dataset.tab));b.addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;e.preventDefault();const tabs=['editor','rom'];let i=tabs.indexOf(b.dataset.tab);i=e.key==='Home'?0:e.key==='End'?1:(i+1)%2;changeTab(tabs[i]);$('tab-'+tabs[i]).focus();});});
 function generateHex(){validateView();const img=graphImage(state,positions);download('graph.hex',img.text);toast(`graph.hex generated: metadata + connections + ${state.nodes} VGA coordinates.`);}
-$('download-main').addEventListener('click',()=>safe(generateHex));$('export-btn').addEventListener('click',()=>safe(generateHex));$('csv-btn').addEventListener('click',()=>download('nodeforge-table.csv',csvTable(state),'text/csv'));
+function generateMif(){validateView();download('graph.mif',graphMif(state,positions));toast('graph.mif generated: 32-bit words, depth 10124, all three sections.');}
+$('download-main').addEventListener('click',()=>safe(generateMif));$('export-btn').addEventListener('click',()=>safe(generateMif));
+$('download-hex').addEventListener('click',()=>safe(generateHex));
+$('download-padded').addEventListener('click',()=>safe(()=>{validateView();download('graph.hex',graphPaddedHex(state,positions));toast('Padded graph.hex generated for FPGA simulation (10124 words).');}));$('csv-btn').addEventListener('click',()=>download('nodeforge-table.csv',csvTable(state),'text/csv'));
 $('hex-section').addEventListener('change',renderRom);
 $('download-map').addEventListener('click',()=>safe(()=>download('nodeforge-memory-map.txt',imageMap(state,positions))));
 $('copy-rom').addEventListener('click',async()=>{try{const text=graphImage(state,positions).text;await navigator.clipboard.writeText(text);toast('Complete three-part HEX copied.');}catch(e){toast(`Could not copy: ${e.message}. Use Generate HEX to download.`);}});
@@ -87,7 +90,7 @@ $('graph-svg').addEventListener('keydown',e=>{const g=e.target.closest('[data-n]
 $('graph-svg').addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.7,Math.min(2.8,zoom*(e.deltaY>0?.9:1.1)));drawGraph();},{passive:false});
 $('svg-btn').addEventListener('click',()=>{const svg=$('graph-svg').cloneNode(true);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('width','1200');svg.setAttribute('height','900');svg.insertAdjacentHTML('afterbegin','<rect x="-2000" y="-2000" width="4000" height="4000" fill="#182130"/>');download('nodeforge-graph.svg',new XMLSerializer().serializeToString(svg),'image/svg+xml');});
 $('coordinate-node').addEventListener('change',()=>{selected=Number($('coordinate-node').value);drawGraph();});
-$('set-coordinate').addEventListener('click',()=>safe(()=>{const n=Number($('coordinate-node').value),x=Number($('coordinate-x').value),y=Number($('coordinate-y').value);if($('coordinate-x').value.trim()===''||$('coordinate-y').value.trim()===''||!Number.isInteger(x)||!Number.isInteger(y)||x<0||x>639||y<0||y>479)throw Error('Use whole pixels: X 0–639, Y 0–479.');selected=n;positions[n]={x,y};drawGraph();toast(`Node ${n}: (${x}, ${y}) saved for the next HEX export.`);}));
+$('set-coordinate').addEventListener('click',()=>safe(()=>{const n=Number($('coordinate-node').value),x=Number($('coordinate-x').value),y=Number($('coordinate-y').value);if($('coordinate-x').value.trim()===''||$('coordinate-y').value.trim()===''||!Number.isInteger(x)||!Number.isInteger(y)||x<0||x>639||y<0||y>479)throw Error('Use whole pixels: X 0–639, Y 0–479.');selected=n;positions[n]={x,y};drawGraph();toast(`Node ${n}: (${x}, ${y}) saved for the next export.`);}));
 $('help-btn').addEventListener('click',()=>$('help-dialog').showModal());$('help-close').addEventListener('click',()=>$('help-dialog').close());$('help-dialog').addEventListener('click',e=>{if(e.target===$('help-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
 refresh({table:true,config:true});
 
