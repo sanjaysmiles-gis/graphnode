@@ -60,3 +60,7 @@ A stored ROM image changes only after an applicable memory initialization/bitstr
 The 16-bit distance recommendation supports a simple shortest path of at most 99 × 255 = 25245. Reserve `16’hFFFF` for infinity and guard infinity before addition.
 
 See `examples/graph.hex` for a complete three-node image and `examples/nodeforge-memory-map.txt` for its decoded values. Your current RTL must be adapted to this interface; it has not been hardware-verified.
+
+## Quartus MIF container
+
+Generate MIF preserves every active word/address above. It emits WIDTH=32; DEPTH=10124; ADDRESS_RADIX=HEX; DATA_RADIX=HEX; CONTENT BEGIN, then `AAAA : DDDDDDDD;` entries and END;. When active length is below capacity, `[NEXT..278B] : 00000000;` fills unused memory. A full 100x100 image has no tail range. Header[17] remains the active length. MIF is not accepted by $readmemh; choose the MIF synthesis wrapper and matching raw simulation file.

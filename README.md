@@ -1,6 +1,6 @@
 # NodeForge — Graph to ROM
 
-An Excel-style directed weighted graph editor for 1–100 nodes and 1–100 neighbour slots per node. Enter `destination (weight)`, arrange the graph, and click **Generate HEX**.
+An Excel-style directed weighted graph editor for 1–100 nodes and 1–100 neighbour slots per node. Enter `destination (weight)`, arrange the graph, and click **Generate MIF** to download `graph.mif` directly.
 
 The static, dependency-free app is in `dist/`. Serve it over HTTP (ES modules). There is no application login, backend, analytics, or external request.
 
@@ -36,3 +36,9 @@ node tests/image.test.mjs
 ```
 
 See `VERIFICATION.md` for the scope of verification. Download HEX before closing the page; edits are held in the current page only.
+
+## Direct MIF export
+
+Generate MIF downloads `graph.mif`, matching the supplied FPGA converter: WIDTH=32, DEPTH=10124, hexadecimal addresses/data, the unchanged three-part NFG1 payload, and a zero-filled tail. No Python conversion is needed. The Memory files tab retains Generate HEX (canonical, re-importable) and Download padded HEX (simulation, exactly 10124 words). Padding never changes header[17], the active image length.
+
+In NodeForge_FPGA_Implementation.zip, compile `rtl_optional/graph_rom_mif.v` instead of `rtl/graph_rom.v` for Quartus MIF initialization; compile exactly one graph_rom module. The optional wrapper uses graph.mif for synthesis and graph.hex for simulation, so download both MIF and padded HEX from the same graph when using both flows. This export update does not validate the friend's entire RTL or change FPGA loading behavior.
